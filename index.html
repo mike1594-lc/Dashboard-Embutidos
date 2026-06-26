@@ -98,10 +98,7 @@
     <div class="filters">
       <div class="fg"><label>Semana</label><select id="fSemana" onchange="renderAll()"><option value="">Todas</option></select></div>
       <div class="fsep"></div>
-      <div class="fg"><label>Día</label><select id="fDia" onchange="renderAll()">
-        <option value="">Todos</option><option value="1">Lunes</option><option value="2">Martes</option>
-        <option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option>
-      </select></div>
+      <div class="fg"><label>Fecha</label><select id="fDia" onchange="renderAll()"><option value="">Todas</option></select></div>
       <div class="fsep"></div>
       <div class="fg"><label>Formato</label><select id="fFormato" onchange="renderAll()"><option value="">Todos</option><option value="Pali">Pali</option><option value="Maxi Pali">Maxi Pali</option></select></div>
       <div class="fsep"></div>
@@ -269,7 +266,6 @@ function scoreLabel(s){return s>=80?'Excelente':s>=65?'Bueno':s>=50?'Regular':'P
 function scoreBadge(s){return s>=80?'b-good':s>=65?'b-good':s>=50?'b-warn':'b-bad';}
 function scoreColor(s){return s>=80?'#2d7d46':s>=65?'#2d7d46':s>=50?'#8a5800':'#9b2020';}
 
-function getDayNum(ts){return new Date(ts+'T12:00:00').getDay();}
 function getFiltered(){
   const sem=document.getElementById('fSemana').value;
   const dia=document.getElementById('fDia').value;
@@ -278,7 +274,7 @@ function getFiltered(){
   const tie=document.getElementById('fTienda').value;
   return allData.filter(d=>
     (!sem||getWeek(d.ts)===sem)&&
-    (!dia||getDayNum(d.ts)===parseInt(dia))&&
+    (!dia||d.ts===dia)&&
     (!fmt||d.formato===fmt)&&
     (!vis||d.visor===vis)&&
     (!tie||d.tienda_num===tie)
@@ -300,6 +296,13 @@ function initFilters(){
   tiendas.forEach(t=>{
     const nombre=allData.find(d=>d.tienda_num===t)?.tienda||'';
     const o=document.createElement('option');o.value=t;o.textContent=`${t} – ${nombre}`;st.appendChild(o);
+  });
+  const dates=[...new Set(allData.map(d=>d.ts))].sort();
+  const sd=document.getElementById('fDia');
+  sd.innerHTML='<option value="">Todas</option>';
+  dates.forEach(dt=>{
+    const[y,m,d]=dt.split('-');
+    const o=document.createElement('option');o.value=dt;o.textContent=`${d}/${m}/${y}`;sd.appendChild(o);
   });
 }
 
