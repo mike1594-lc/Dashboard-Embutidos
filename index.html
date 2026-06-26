@@ -126,7 +126,7 @@
             <thead><tr>
               <th>Visora</th><th style="text-align:center">Semana<br>actual</th><th style="text-align:center">Total</th>
               <th style="text-align:center">Habladores</th><th style="text-align:center">Faltantes</th>
-              <th style="text-align:center">Banderas</th><th style="text-align:center">Orden</th><th style="text-align:center">Plano.</th>
+              <th style="text-align:center">Banderas</th><th style="text-align:center">Orden</th><th style="text-align:center">Plano.</th><th style="text-align:center">Score</th>
             </tr></thead><tbody></tbody>
           </table>
         </div>
@@ -153,7 +153,7 @@
             <thead><tr>
               <th>Visora</th><th style="text-align:center">Tiendas asignadas</th>
               <th style="text-align:center">Visitas esta semana</th><th style="text-align:center">Meta semanal</th>
-              <th style="text-align:center">Cumplimiento</th><th style="text-align:center">Tiendas visitadas</th>
+              <th style="text-align:center">Cumplimiento</th><th style="text-align:center">Tiendas visitadas</th><th style="text-align:center">Score</th>
             </tr></thead><tbody></tbody>
           </table>
         </div>
@@ -254,22 +254,52 @@ function sc(v){return v>=4?'#2d7d46':v>=3?'#8a5800':'#9b2020';}
 function pc(p,inv){return inv?(p<=30?'#2d7d46':p<=50?'#8a5800':'#9b2020'):(p>=70?'#2d7d46':p>=50?'#8a5800':'#9b2020');}
 function bc(v,max5){return max5?(v>=4?'b-good':v>=3?'b-warn':'b-bad'):(v>=70?'b-good':v>=50?'b-warn':'b-bad');}
 
+// Score de ejecución: orden(30%) + planograma(20%) + habladores(20%) + sin_faltantes(20%) + banderas(10%)
+function calcScore(arr){
+  if(!arr.length)return null;
+  const o=avg(arr,'orden')/5*100;
+  const p=avg(arr,'plano')/5*100;
+  const h=pct(arr,'habl','Si');
+  const sf=pct(arr,'falt','No'); // sin faltantes = bueno
+  const b=pct(arr,'band','Si');
+  return Math.round(o*0.30 + p*0.20 + h*0.20 + sf*0.20 + b*0.10);
+}
+function scoreLabel(s){return s>=80?'Excelente':s>=65?'Bueno':s>=50?'Regular':'Por mejorar';}
+function scoreBadge(s){return s>=80?'b-good':s>=65?'b-good':s>=50?'b-warn':'b-bad';}
+function scoreColor(s){return s>=80?'#2d7d46':s>=65?'#2d7d46':s>=50?'#8a5800':'#9b2020';}
+
+function getDayNum(ts){return new Date(ts+'T12:00:00').getDay();}
 function getFiltered(){
   const sem=document.getElementById('fSemana').value;
+  const dia=document.getElementById('fDia').value;
   const fmt=document.getElementById('fFormato').value;
   const vis=document.getElementById('fVisor').value;
-  return allData.filter(d=>(!sem||getWeek(d.ts)===sem)&&(!fmt||d.formato===fmt)&&(!vis||d.visor===vis));
+  const tie=document.getElementById('fTienda').value;
+  return allData.filter(d=>
+    (!sem||getWeek(d.ts)===sem)&&
+    (!dia||getDayNum(d.ts)===parseInt(dia))&&
+    (!fmt||d.formato===fmt)&&
+    (!vis||d.visor===vis)&&
+    (!tie||d.tienda_num===tie)
+  );
 }
 
 function initFilters(){
   const visors=[...new Set(allData.map(d=>d.visor))].sort();
   const weeks=[...new Set(allData.map(d=>getWeek(d.ts)))].sort();
+  const tiendas=[...new Set(allData.map(d=>d.tienda_num))].sort((a,b)=>parseInt(a)-parseInt(b));
   const sv=document.getElementById('fVisor');
   sv.innerHTML='<option value="">Todas</option>';
   visors.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sv.appendChild(o);});
   const sw=document.getElementById('fSemana');
   sw.innerHTML='<option value="">Todas</option>';
   weeks.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=fmtWeek(w);sw.appendChild(o);});
+  const st=document.getElementById('fTienda');
+  st.innerHTML='<option value="">Todas</option>';
+  tiendas.forEach(t=>{
+    const nombre=allData.find(d=>d.tienda_num===t)?.tienda||'';
+    const o=document.createElement('option');o.value=t;o.textContent=`${t} – ${nombre}`;st.appendChild(o);
+  });
 }
 
 function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
@@ -287,6 +317,8 @@ function renderKPIs(d){
   const visitadasSem=new Set(tw.map(x=>x.tienda_num)).size;
   const cumplPct=metaSem?Math.round(visitadasSem/metaSem*100):0;
 
+  const score=calcScore(d);
+  const scoreCard=score!==null?`<div class="kpi" style="border-top-color:${scoreColor(score)}"><div class="kpi-label">Score de ejecución</div><div class="kpi-val" style="color:${scoreColor(score)}">${score}<span style="font-size:13px;font-weight:400;color:var(--text-ter)">/100</span></div><div class="kpi-sub">${scoreLabel(score)}</div></div>`:'';
   document.getElementById('kpis').innerHTML=`
     <div class="kpi"><div class="kpi-label">Total visitas</div><div class="kpi-val">${d.length}</div><div class="kpi-sub">periodo</div></div>
     <div class="kpi gold"><div class="kpi-label">Esta semana</div><div class="kpi-val">${tw.length}</div><div class="kpi-sub">${fmtWeek(lw)}</div></div>
@@ -294,6 +326,7 @@ function renderKPIs(d){
     <div class="kpi ${cumplPct>=80?'green':cumplPct>=60?'gold':'red'}"><div class="kpi-label">Tiendas visitadas</div><div class="kpi-val ${cumplPct>=80?'good':cumplPct>=60?'warn':'bad'}">${visitadasSem}<span style="font-size:13px;font-weight:400;color:var(--text-ter)">/${metaSem}</span></div><div class="kpi-sub">${cumplPct}% de meta semanal</div></div>
     <div class="kpi"><div class="kpi-label">Habladores OK</div><div class="kpi-val" style="color:${pc(pct(d,'habl','Si'),false)}">${pct(d,'habl','Si')}%</div><div class="kpi-sub">${d.filter(x=>x.habl==='Si').length} de ${d.length}</div></div>
     <div class="kpi"><div class="kpi-label">Con faltantes</div><div class="kpi-val" style="color:${pc(pct(d,'falt','Si'),true)}">${pct(d,'falt','Si')}%</div><div class="kpi-sub">${d.filter(x=>x.falt==='Si').length} tiendas</div></div>
+    ${scoreCard}
   `;
 }
 
@@ -342,7 +375,8 @@ function renderTablaVisoras(d){
       <td style="text-align:center"><span class="badge ${bc(pf,false)?'':''} ${pf<=30?'b-good':pf<=50?'b-warn':'b-bad'}">${falt}/${all.length} (${pf}%)</span></td>
       <td style="text-align:center"><span class="badge ${bc(pb,false)}">${band}/${all.length} (${pb}%)</span></td>
       <td style="text-align:center"><span class="badge ${o>=4?'b-good':o>=3?'b-warn':'b-bad'}">${o}/5</span></td>
-      <td style="text-align:center"><span class="badge ${p>=4?'b-good':p>=3?'b-warn':'b-bad'}">${p}/5</span></td></tr>`;
+      <td style="text-align:center"><span class="badge ${p>=4?'b-good':p>=3?'b-warn':'b-bad'}">${p}/5</span></td>
+      <td style="text-align:center"><span class="badge ${scoreBadge(calcScore(all))}">${calcScore(all)}/100</span></td></tr>`;
   }).join('');
 }
 
@@ -363,7 +397,9 @@ function renderCumplimiento(d){
     });
     const uniqueVisitadas=new Set(visitadasSem.map(x=>x.tienda_num)).size;
     const cumpl=metaSem?Math.round(uniqueVisitadas/metaSem*100):0;
-    return {visora:v,asignadas:asignadas.length,metaSem,visitadasSem:uniqueVisitadas,cumpl,idx:i};
+    const visorData=twData.filter(x=>asignadas.some(c=>c.tienda_num===x.tienda_num||c.tienda_num===normTienda(x.tienda_num)));
+    const score=calcScore(visorData);
+    return {visora:v,asignadas:asignadas.length,metaSem,visitadasSem:uniqueVisitadas,cumpl,score,idx:i};
   });
 
   // Chart meta vs realizadas
@@ -398,6 +434,7 @@ function renderCumplimiento(d){
     <td style="text-align:center">${r.metaSem}</td>
     <td style="text-align:center"><span class="badge ${r.cumpl>=80?'b-good':r.cumpl>=60?'b-warn':'b-bad'}">${r.cumpl}%</span></td>
     <td style="text-align:center">${r.visitadasSem} / ${r.asignadas}</td>
+    <td style="text-align:center">${r.score!==null?`<span class="badge ${r.score>=80?'b-good':r.score>=50?'b-warn':'b-bad'}">${r.score}/100</span>`:'–'}</td>
   </tr>`).join('');
 }
 
