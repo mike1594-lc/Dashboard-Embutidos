@@ -371,7 +371,8 @@ function renderTablaVisoras(d){
   const visors=[...new Set(d.map(x=>x.visor))].sort();
   const weeks=[...new Set(d.map(x=>getWeek(x.ts)))].sort();
   const lw=weeks[weeks.length-1]||'';
-  document.querySelector('#tVisoras tbody').innerHTML=visors.map((v,i)=>{
+  const tVisorasEl=document.querySelector('#tVisoras tbody');if(!tVisorasEl)return;
+  tVisorasEl.innerHTML=visors.map((v,i)=>{
     const all=d.filter(x=>x.visor===v),sem=all.filter(x=>getWeek(x.ts)===lw);
     const habl=all.filter(x=>x.habl==='Si').length,falt=all.filter(x=>x.falt==='Si').length,band=all.filter(x=>x.band==='Si').length;
     const ph=Math.round(habl/all.length*100),pf=Math.round(falt/all.length*100),pb=Math.round(band/all.length*100);
@@ -434,7 +435,8 @@ function renderCumplimiento(d){
   });
 
   // Tabla cumplimiento
-  document.querySelector('#tCumpl tbody').innerHTML=rows.map((r,i)=>`<tr>
+  const tCumplEl=document.querySelector('#tCumpl tbody');if(!tCumplEl)return;
+  tCumplEl.innerHTML=rows.map((r,i)=>`<tr>
     <td><div class="vc"><div class="avatar" style="background:${AVB[i%AVB.length]};color:${PAL[i%PAL.length]}">${initials(r.visora)}</div><span>${r.visora}</span></div></td>
     <td style="text-align:center">${r.asignadas}</td>
     <td style="text-align:center;font-weight:700">${r.visitadasSem}</td>
@@ -453,7 +455,8 @@ function renderSinVisita(d){
 
   const sinVisita=CARTOLA.filter(c=>c.semana_tipo==='Semanal'&&!visitadasNums.has(c.tienda_num));
   document.getElementById('tSinVisitaTitle').textContent=`Tiendas sin visita esta semana (${sinVisita.length} de ${CARTOLA.filter(c=>c.semana_tipo==='Semanal').length})`;
-  document.querySelector('#tSinVisita tbody').innerHTML=sinVisita.map((c,i)=>`<tr>
+  const tSinEl=document.querySelector('#tSinVisita tbody');if(!tSinEl)return;
+  tSinEl.innerHTML=sinVisita.map((c,i)=>`<tr>
     <td style="color:var(--text-ter)">${i+1}</td>
     <td><strong>${c.nombre}</strong></td>
     <td>${c.visora}</td>
@@ -503,4 +506,3 @@ loadData();
 </script>
 </body>
 </html>
-
